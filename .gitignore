@@ -19,3 +19,6 @@
 
 # Go workspace file
 go.work
+
+storage/mock_storage/
+shortener/mock_shortener/
