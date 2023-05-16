@@ -29,12 +29,10 @@ func registerHooks(lifecycle fx.Lifecycle, r *gin.Engine, c *conf.Config) {
 	lifecycle.Append(
 		fx.Hook{
 			OnStart: func(context.Context) error {
-				fmt.Println("Starting application in :5000")
 				go r.Run(c.HostName)
 				return nil
 			},
 			OnStop: func(context.Context) error {
-				fmt.Println("Stopping application")
 				return nil
 			},
 		},
@@ -58,7 +56,6 @@ func TestShortenerHttp(t *testing.T) {
 		}),
 		fx.Invoke(registerHooks),
 	)
-	fmt.Println("Starting...")
 	go app.Run()
 
 	defer func() {
@@ -67,8 +64,12 @@ func TestShortenerHttp(t *testing.T) {
 	}()
 
 	t.Run("Save", func(t *testing.T) {
-		client := &http.Client{}
-		fmt.Println("making request")
+		client := &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+
 		data := strings.NewReader(`{"url":"https://www.google.com"}`)
 		req, err := http.NewRequest("POST", "http://localhost:3999/urls", data)
 		if err != nil {
@@ -94,20 +95,19 @@ func TestShortenerHttp(t *testing.T) {
 		json.Unmarshal(bodyText, &response)
 		assert.NotEmpty(t, response.Code)
 
-		resp, err = http.Get(fmt.Sprintf("http://localhost:3999/urls/%s/", response.Code))
+		req, err = http.NewRequest("GET", fmt.Sprintf("http://localhost:3999/urls/%s/", response.Code), nil)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		resp, err = client.Do(req)
 		if err != nil {
 			log.Fatalln(err)
 		}
 		defer resp.Body.Close()
-		bodyText, err = io.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		assert.NotEmpty(t, bodyText)
 
-		getResponse := handlers.UrlGetResponse{}
-		json.Unmarshal(bodyText, &getResponse)
-		assert.Equal(t, "https://www.google.com", getResponse.URL)
+		location := resp.Header.Get("Location")
+		assert.Equal(t, "https://www.google.com", location)
+		assert.Equal(t, http.StatusMovedPermanently, resp.StatusCode)
 
 	})
 }
@@ -140,7 +140,6 @@ func TestMain(m *testing.M) {
 			return err
 		}
 		db.Exec("create table urls ( id text primary key, url text not null);")
-		fmt.Println("ping")
 		return db.Ping()
 	}); err != nil {
 		log.Fatalf("Could not connect to database: %s", err)

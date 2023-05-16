@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,16 +24,13 @@ func CreateURLHandler(c *gin.Context, s shortener.Shortener) {
 
 func GetURLHandler(c *gin.Context, s shortener.Shortener) {
 	var request UrlGetRequest
-	fmt.Println(c.Param("code"))
-	fmt.Println(c.Request.URL.Path)
 	if err := c.ShouldBindUri(&request); err == nil {
-		fmt.Println(request.Code)
 		url, err := s.Load(c.Request.Context(), request.Code)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, UrlGetResponse{URL: url})
+		c.Redirect(http.StatusMovedPermanently, url)
 	} else {
 		c.JSON(http.StatusNotFound, gin.H{"error": "code is required"})
 	}

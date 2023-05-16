@@ -11,7 +11,3 @@ type UrlCreationResponse struct {
 type UrlGetRequest struct {
 	Code string `uri:"code" binding:"required"`
 }
-
-type UrlGetResponse struct {
-	URL string `json:"url"`
-}
