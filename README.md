@@ -20,6 +20,7 @@ curl http://localhost:8080/urls/ytKEQIFa/
 ## Run tests
 
 ```bash
+make gen
 go test ./... -v
 ```
 
